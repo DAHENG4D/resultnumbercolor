@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Display Grid</title>
+    <style>
+        /* --- Basic Setup --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 1rem;
+        }
+
+        /* --- Header & Controls --- */
+        .controls {
+            background-color: #2c2c2c;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            border: 1px solid #444;
+        }
+
+        .controls h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            width: 100%;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+            color: #aaa;
+        }
+
+        .control-group input {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: #333;
+            color: #fff;
+            width: 100px;
+        }
+
+        button {
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            align-self: flex-end;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #randomize-btn {
+            background-color: #28a745;
+        }
+        #randomize-btn:hover {
+            background-color: #218838;
+        }
+        #reset-btn {
+            background-color: #dc3545;
+        }
+        #reset-btn:hover {
+            background-color: #c82333;
+        }
+
+        /* --- Grid Container --- */
+        #grid-container {
+            display: grid;
+            /* Creates a responsive grid that fits as many columns as possible */
+            grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+            gap: 6px;
+        }
+
+        /* --- Number Box Styling --- */
+        .number-box {
+            border: 1px solid #444;
+            background-color: #333;
+            padding: 0.5rem;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            border-radius: 4px;
+            transition: background-color 0.3s ease-in-out, transform 0.1s ease;
+        }
+
+        /* --- Color State Classes --- */
+        .number-box.blue {
+            background-color: #005f73; /* Blue for Result Point > 0 */
+            color: white;
+        }
+        .number-box.yellow {
+            background-color: #ee9b00; /* Yellow for Bet Volume > 0 */
+            color: #1a1a1a;
+        }
+        .number-box.red {
+            background-color: #ae2012; /* Red for both > 0 */
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="controls">
+        <h2>Update Number Status</h2>
+        <div class="control-group">
+            <label for="number-input">Number (0000-9999)</label>
+            <input type="text" id="number-input" maxlength="4" placeholder="e.g., 1234">
+        </div>
+        <div class="control-group">
+            <label for="result-input">Result Point</label>
+            <input type="number" id="result-input" min="0" value="0">
+        </div>
+        <div class="control-group">
+            <label for="bet-input">Bet Volume</label>
+            <input type="number" id="bet-input" min="0" value="0">
+        </div>
+        <button id="update-btn">Update</button>
+        <button id="randomize-btn">Randomize 100</button>
+        <button id="reset-btn">Reset All</button>
+    </header>
+
+    <main id="grid-container"></main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridContainer = document.getElementById('grid-container');
+            const numberInput = document.getElementById('number-input');
+            const resultInput = document.getElementById('result-input');
+            const betInput = document.getElementById('bet-input');
+            const updateBtn = document.getElementById('update-btn');
+            const randomizeBtn = document.getElementById('randomize-btn');
+            const resetBtn = document.getElementById('reset-btn');
+
+            // Data store for all 10,000 numbers
+            const numberData = [];
+
+            /**
+             * Initializes the grid by creating 10,000 number boxes
+             * and populating the data store.
+             */
+            function initializeGrid() {
+                // Use a document fragment for performance. It builds the elements in memory
+                // before adding them to the DOM in a single operation.
+                const fragment = document.createDocumentFragment();
+
+                for (let i = 0; i < 10000; i++) {
+                    const numberStr = i.toString().padStart(4, '0');
+
+                    // 1. Initialize data store for this number
+                    numberData[i] = {
+                        resultPoint: 0,
+                        betVolume: 0
+                    };
+
+                    // 2. Create the visual box element
+                    const box = document.createElement('div');
+                    box.className = 'number-box';
+                    box.textContent = numberStr;
+                    box.id = `box-${numberStr}`; // Assign a unique ID for easy access
+                    fragment.appendChild(box);
+                }
+                gridContainer.appendChild(fragment); // Append all boxes at once
+                console.log("Grid initialized.");
+            }
+
+            /**
+             * Updates the color of a single number box based on its data.
+             * @param {number} index - The index of the number (0-9999).
+             */
+            function updateBoxColor(index) {
+                const numberStr = index.toString().padStart(4, '0');
+                const box = document.getElementById(`box-${numberStr}`);
+                if (!box) return;
+
+                const data = numberData[index];
+                const hasResult = data.resultPoint > 0;
+                const hasBet = data.betVolume > 0;
+
+                // Reset classes first
+                box.className = 'number-box';
+
+                // Apply new class based on conditions
+                if (hasResult && hasBet) {
+                    box.classList.add('red');
+                } else if (hasResult) {
+                    box.classList.add('blue');
+                } else if (hasBet) {
+                    box.classList.add('yellow');
+                }
+            }
+
+            /**
+             * Handles the "Update" button click.
+             */
+            function handleUpdate() {
+                const numStr = numberInput.value.padStart(4, '0');
+                const index = parseInt(numStr, 10);
+
+                if (isNaN(index) || index < 0 || index > 9999) {
+                    alert("Please enter a valid number between 0000 and 9999.");
+                    return;
+                }
+
+                // Update the data store
+                numberData[index].resultPoint = parseInt(resultInput.value, 10) || 0;
+                numberData[index].betVolume = parseInt(betInput.value, 10) || 0;
+
+                // Update the visual display for that specific number
+                updateBoxColor(index);
+            }
+
+            /**
+             * Randomly assigns values to 100 numbers to demonstrate the effect.
+             */
+            function handleRandomize() {
+                for (let i = 0; i < 100; i++) {
+                    const randomIndex = Math.floor(Math.random() * 10000);
+                    const randomState = Math.floor(Math.random() * 4); // 0: reset, 1: blue, 2: yellow, 3: red
+
+                    switch (randomState) {
+                        case 0: // Reset
+                            numberData[randomIndex].resultPoint = 0;
+                            numberData[randomIndex].betVolume = 0;
+                            break;
+                        case 1: // Blue
+                            numberData[randomIndex].resultPoint = Math.floor(Math.random() * 100) + 1;
+                            numberData[randomIndex].betVolume = 0;
+                            break;
+                        case 2: // Yellow
+                            numberData[randomIndex].resultPoint = 0;
+                            numberData[randomIndex].betVolume = Math.floor(Math.random() * 100) + 1;
+                            break;
+                        case 3: // Red
+                            numberData[randomIndex].resultPoint = Math.floor(Math.random() * 100) + 1;
+                            numberData[randomIndex].betVolume = Math.floor(Math.random() * 100) + 1;
+                            break;
+                    }
+                    updateBoxColor(randomIndex);
+                }
+            }
+
+             /**
+             * Resets all numbers to their default state.
+             */
+            function handleReset() {
+                for (let i = 0; i < 10000; i++) {
+                    numberData[i].resultPoint = 0;
+                    numberData[i].betVolume = 0;
+                    updateBoxColor(i);
+                }
+            }
+
+            // --- Event Listeners ---
+            updateBtn.addEventListener('click', handleUpdate);
+            randomizeBtn.addEventListener('click', handleRandomize);
+            resetBtn.addEventListener('click', handleReset);
+            
+            // Allow pressing Enter in the last input field to trigger update
+            betInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    handleUpdate();
+                }
+            });
+
+            // --- Start the application ---
+            initializeGrid();
+        });
+    </script>
+</body>
+</html>
