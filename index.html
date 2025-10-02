@@ -72,16 +72,16 @@
             color: #aaa;
         }
 
-        /* NEW STYLES for the textarea */
+        /* Textarea styles */
         .control-group textarea {
             padding: 0.5rem;
             border-radius: 4px;
             border: 1px solid #555;
             background-color: #333;
             color: #fff;
-            width: 300px; /* Wider input box */
-            height: 150px; /* Taller input box */
-            font-family: monospace; /* Monospace font for number entry */
+            width: 300px; 
+            height: 150px; 
+            font-family: monospace; 
             resize: vertical;
         }
         
@@ -96,47 +96,20 @@
             align-self: flex-end;
         }
         
-        /* Default Update Button */
-        #update-btn {
-            background-color: #007bff;
-        }
-        #update-btn:hover {
-            background-color: #0056b3;
-        }
-
-        /* Add Result Button */
-        #randomize-btn { 
-            background-color: #28a745;
-        }
-        #randomize-btn:hover {
-            background-color: #218838;
-        }
-
-        /* Undo Button - NEW */
-        #undo-btn {
-            background-color: #6c757d; /* Gray */
-        }
-        #undo-btn:hover:not(:disabled) {
-            background-color: #5a6268;
-        }
-        #undo-btn:disabled {
-            background-color: #495057;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        /* Reset Button */
-        #reset-btn {
-            background-color: #dc3545;
-        }
-        #reset-btn:hover {
-            background-color: #c82333;
-        }
+        /* Control Button Colors */
+        #update-btn { background-color: #007bff; }
+        #update-btn:hover { background-color: #0056b3; }
+        #randomize-btn { background-color: #28a745; }
+        #randomize-btn:hover { background-color: #218838; }
+        #undo-btn { background-color: #6c757d; }
+        #undo-btn:hover:not(:disabled) { background-color: #5a6268; }
+        #undo-btn:disabled { background-color: #495057; cursor: not-allowed; opacity: 0.6; }
+        #reset-btn { background-color: #dc3545; }
+        #reset-btn:hover { background-color: #c82333; }
 
         /* --- Grid Container --- */
         #grid-container {
             display: grid;
-            /* Creates a responsive grid that fits as many columns as possible */
             grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
             gap: 6px;
         }
@@ -151,20 +124,77 @@
             font-size: 0.9rem;
             border-radius: 4px;
             transition: background-color 0.3s ease-in-out, transform 0.1s ease;
+            cursor: pointer; /* Indicate clickability */
+        }
+        /* Color State Classes */
+        .number-box.blue { background-color: #005f73; color: white; }
+        .number-box.yellow { background-color: #ee9b00; color: #1a1a1a; }
+        .number-box.red { background-color: #ae2012; color: white; }
+
+        /* --- Modal Styles (NEW) --- */
+        #box-menu-modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); /* Dark semi-transparent background */
         }
 
-        /* --- Color State Classes --- */
-        .number-box.blue {
-            background-color: #005f73; /* Blue for Result Point > 0 */
-            color: white;
+        .modal-content {
+            background-color: #2c2c2c;
+            margin: 15% auto; /* Center the box vertically and horizontally */
+            padding: 25px;
+            border: 1px solid #444;
+            width: 80%;
+            max-width: 350px;
+            border-radius: 8px;
+            text-align: center;
         }
-        .number-box.yellow {
-            background-color: #ee9b00; /* Yellow for Bet Volume > 0 */
-            color: #1a1a1a;
+        
+        .modal-content h3 {
+            margin-top: 0;
+            color: #fff;
+            border-bottom: 1px dashed #444;
+            padding-bottom: 10px;
         }
-        .number-box.red {
-            background-color: #ae2012; /* Red for both > 0 */
+
+        .menu-options button {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 1rem;
+        }
+
+        /* Specific Button Colors for Modal */
+        #menu-reset { background-color: #dc3545; }
+        #menu-reset:hover { background-color: #c82333; }
+        #menu-set-none { background-color: #333; border: 1px solid #555; }
+        #menu-set-none:hover { background-color: #444; }
+        #menu-set-blue { background-color: #005f73; }
+        #menu-set-blue:hover { background-color: #005f73c0; }
+        #menu-set-yellow { background-color: #ee9b00; color: #1a1a1a; }
+        #menu-set-yellow:hover { background-color: #ee9b00c0; }
+        #menu-set-red { background-color: #ae2012; }
+        #menu-set-red:hover { background-color: #ae2012c0; }
+
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 0.5;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
             color: white;
+            text-decoration: none;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -204,15 +234,41 @@
 
     <main id="grid-container"></main>
 
+    <div id="box-menu-modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('box-menu-modal').style.display='none'">&times;</span>
+            <h3 id="modal-title">Options for Number 0000</h3>
+            
+            <div class="menu-options">
+                <button id="menu-reset" onclick="handleBoxReset(currentSelectedNumberIndex)">
+                    Reset All Points (Result=0, Bet=0)
+                </button>
+                <hr style="border: 0; border-top: 1px dashed #444; margin: 15px 0;">
+                <p style="margin-bottom: 5px; color: #aaa;">Set Status (Pick Color):</p>
+                <button id="menu-set-red" onclick="handleBoxSetColor(currentSelectedNumberIndex, 'red')">
+                    Set **Red** (Result > 0, Bet > 0)
+                </button>
+                <button id="menu-set-blue" onclick="handleBoxSetColor(currentSelectedNumberIndex, 'blue')">
+                    Set **Blue** (Result > 0, Bet = 0)
+                </button>
+                <button id="menu-set-yellow" onclick="handleBoxSetColor(currentSelectedNumberIndex, 'yellow')">
+                    Set **Yellow** (Result = 0, Bet > 0)
+                </button>
+                <button id="menu-set-none" onclick="handleBoxSetColor(currentSelectedNumberIndex, 'none')">
+                    Set **Default/Gray** (Result = 0, Bet = 0)
+                </button>
+            </div>
+        </div>
+    </div>
     <script>
         // Data injected by the dhsourcerepo-randomizer script
         const LATEST_DRAW_RESULTS = {}; // Placeholder. The Python script will replace this line
         // End of injected data
         
         // --- Undo History Variables ---
-        // HISTORY_LIMIT = 10 means we keep the last 10 actions + the current state (11 total entries)
         let history = [];
         const HISTORY_LIMIT = 10;
+        let currentSelectedNumberIndex = null; // To track the number being edited in the modal
         // ------------------------------
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -222,6 +278,7 @@
             const addResultSingleBtn = document.getElementById('randomize-btn'); 
             const undoBtn = document.getElementById('undo-btn'); 
             const resetBtn = document.getElementById('reset-btn');
+            const boxMenuModal = document.getElementById('box-menu-modal');
 
             // 🌟 Persistence Key
             const STORAGE_KEY = 'numberGridData';
@@ -233,11 +290,8 @@
 
             /**
              * Captures the current state of numberData and pushes it to history.
-             * The redundant state check has been removed to ensure every action 
-             * that calls this function creates a unique undo step.
              */
             function captureState() {
-                // Map to only store the necessary values (resultPoint, betVolume)
                 const currentState = numberData.map(item => ({
                     resultPoint: item.resultPoint,
                     betVolume: item.betVolume
@@ -257,7 +311,6 @@
              * Updates the disabled state and text of the Undo button.
              */
             function updateUndoButtonState() {
-                // Undo is possible if history.length > 1 (meaning there is at least one previous state to revert to)
                 const undoCount = history.length > 1 ? history.length - 1 : 0;
                 undoBtn.disabled = undoCount === 0;
                 undoBtn.textContent = `Undo (${undoCount})`;
@@ -272,20 +325,15 @@
                     return;
                 }
                 
-                // 1. Remove the current state (the result of the last action)
                 history.pop(); 
-                
-                // 2. Get the previous state (the one we revert to)
                 const previousState = history[history.length - 1]; 
                 
-                // 3. Restore numberData and redraw
                 numberData.forEach((item, index) => {
                     item.resultPoint = previousState[index].resultPoint;
                     item.betVolume = previousState[index].betVolume;
                     updateBoxColor(index);
                 });
 
-                // 4. Save and Update UI
                 saveDataToLocalStorage();
                 updateWarningIndicator(); 
                 updateUndoButtonState(); 
@@ -323,6 +371,74 @@
                 }
             }
 
+            // --- UI/Grid Functions ---
+
+            /**
+             * Displays the modal menu for a specific number box.
+             */
+            function showBoxMenu(numberStr) {
+                currentSelectedNumberIndex = parseInt(numberStr, 10);
+                document.getElementById('modal-title').textContent = `Options for Number ${numberStr}`;
+                boxMenuModal.style.display = 'block';
+            }
+
+            /**
+             * Resets result and bet volume for the selected number.
+             * @param {number} index - The index (0-9999) of the number to reset.
+             */
+            window.handleBoxReset = function(index) {
+                // CAPTURE STATE BEFORE MODIFICATION
+                captureState();
+
+                numberData[index].resultPoint = 0;
+                numberData[index].betVolume = 0;
+
+                updateBoxColor(index);
+                saveDataToLocalStorage();
+                updateWarningIndicator();
+                boxMenuModal.style.display = 'none';
+            }
+
+            /**
+             * Sets the state of the selected number based on a color type.
+             * @param {number} index - The index (0-9999) of the number.
+             * @param {string} colorType - 'red', 'blue', 'yellow', or 'none'.
+             */
+            window.handleBoxSetColor = function(index, colorType) {
+                 // CAPTURE STATE BEFORE MODIFICATION
+                 captureState();
+
+                 let newResult = 0;
+                 let newBet = 0;
+                 // Use 1 to simply activate the color state
+                 
+                 if (colorType === 'red') {
+                     newResult = 1;
+                     newBet = 1;
+                 } else if (colorType === 'blue') {
+                     newResult = 1;
+                     newBet = 0;
+                 } else if (colorType === 'yellow') {
+                     newResult = 0;
+                     newBet = 1;
+                 } // 'none' leaves them as 0, 0
+
+                 numberData[index].resultPoint = newResult;
+                 numberData[index].betVolume = newBet;
+
+                 updateBoxColor(index);
+                 saveDataToLocalStorage();
+                 updateWarningIndicator();
+                 boxMenuModal.style.display = 'none';
+            }
+
+            // Make modal clickable outside the content to close
+            window.onclick = function(event) {
+                if (event.target == boxMenuModal) {
+                    boxMenuModal.style.display = "none";
+                }
+            }
+
 
             /**
              * Checks for red boxes and displays a warning in the header.
@@ -331,20 +447,15 @@
                 const warningDiv = document.getElementById('red-box-warning');
                 let redBoxExists = false;
 
-                // Iterate through the whole dataset to find a red box
                 for (let i = 0; i < 10000; i++) {
                     const data = numberData[i];
                     if (data.resultPoint > 0 && data.betVolume > 0) {
                         redBoxExists = true;
-                        break; // Stop checking once one red box is found
+                        break; 
                     }
                 }
 
-                if (redBoxExists) {
-                    warningDiv.style.display = 'block';
-                } else {
-                    warningDiv.style.display = 'none';
-                }
+                warningDiv.style.display = redBoxExists ? 'block' : 'none';
             }
 
 
@@ -353,46 +464,40 @@
              */
             function initializeGrid() {
                 const fragment = document.createDocumentFragment();
-                
-                // 1. Load saved data
                 const savedData = loadDataFromLocalStorage();
 
                 for (let i = 0; i < 10000; i++) {
                     const numberStr = i.toString().padStart(4, '0');
 
-                    // 2. Initialize numberData with saved values or default
                     numberData[i] = savedData && savedData[i] ? savedData[i] : {
                         resultPoint: 0,
                         betVolume: 0
                     };
 
-                    // 3. Apply the LATEST_DRAW_RESULTS (adds points to existing resultPoint)
                     if (LATEST_DRAW_RESULTS && LATEST_DRAW_RESULTS[numberStr]) {
                         const points = LATEST_DRAW_RESULTS[numberStr];
                         numberData[i].resultPoint += points; 
                     }
 
-                    // 4. Create the visual box element
                     const box = document.createElement('div');
                     box.className = 'number-box';
                     box.textContent = numberStr;
                     box.id = `box-${numberStr}`;
+                    
+                    // NEW: Add click listener to show the menu
+                    box.addEventListener('click', () => showBoxMenu(numberStr)); 
+
                     fragment.appendChild(box);
                 }
                 gridContainer.appendChild(fragment); 
                 
-                // 5. Update colors and Save the new state
                 for (let i = 0; i < 10000; i++) {
                     updateBoxColor(i);
                 }
                 
-                updateWarningIndicator(); // Check and display warning on load
+                updateWarningIndicator(); 
                 saveDataToLocalStorage();
-                
-                // 6. Capture the initial state after load/setup
                 captureState(); 
-                
-                console.log("Grid initialized, local data loaded, and latest results applied.");
             }
 
             /**
@@ -419,13 +524,11 @@
             }
 
             /**
-             * Generates all unique permutations of a 4-digit string.
+             * Generates all unique permutations of a 4-digit string. (Logic unchanged)
              */
             function getPermutations(numStr) {
                 if (numStr.length !== 4) return [numStr];
-
                 let results = new Set();
-
                 function permute(arr, memo = []) {
                     if (arr.length === 0) {
                         results.add(memo.join(''));
@@ -437,14 +540,13 @@
                         permute(remaining, memo.concat(curr));
                     }
                 }
-
                 permute(numStr.split(''));
                 return Array.from(results);
             }
 
 
             /**
-             * Handles the "Update Status" button click for bulk input.
+             * Handles the "Update Status" button click for bulk input. (Logic unchanged)
              */
             function handleUpdate() {
                 const rawInput = numberInput.value.trim();
@@ -453,65 +555,51 @@
                     return;
                 }
 
-                // CAPTURE STATE BEFORE MODIFICATION
                 captureState();
                 
-                // 1. STRIP HTML TAGS: Remove all content between < and >
                 const strippedInput = rawInput.replace(/<[^>]*>/g, ' ');
-
-                // 2. Split input by any whitespace to get potential tokens
                 const tokens = strippedInput.split(/\s+/).filter(t => t.length > 0);
-                
                 let updatesMade = 0;
                 
                 for (const token of tokens) {
-                    // Case 1: Bet Volume Update (Format: NNNN-B-S-BI-SI-STR or NNNN-X-Y-Z)
                     if (token.includes('-')) {
                         const parts = token.split('-');
                         const numStr = parts[0].padStart(4, '0');
                         const index = parseInt(numStr, 10);
 
-                        // Basic validation for number
                         if (isNaN(index) || index < 0 || index > 9999 || parts.length < 2) {
                             continue;
                         }
                         
                         let numbersToUpdate = new Set();
-                        numbersToUpdate.add(numStr); // Always include the base number
+                        numbersToUpdate.add(numStr);
 
                         let totalBetVolumeAdded = 0;
                         
-                        // Check for the structured bet format (4, 5, or 6 parts after the number)
                         if (parts.length >= 4 && parts.length <= 6) {
-                            // Map the parts to a fixed 5 point values, filling missing trailing parts with 0
                             const B = parseInt(parts[1], 10) || 0;
                             const S = parseInt(parts[2], 10) || 0;
                             const BI = parseInt(parts[3], 10) || 0;
                             const SI = parts.length >= 5 ? parseInt(parts[4], 10) || 0 : 0;
                             const STR = parts.length === 6 ? parseInt(parts[5], 10) || 0 : 0;
 
-                            // Add Permutations for IBOX bets (BI or SI)
                             if (BI > 0 || SI > 0) {
                                 const permutations = getPermutations(numStr);
                                 permutations.forEach(p => numbersToUpdate.add(p));
                             }
 
-                            // Sum of all points is the total volume to be applied to ALL relevant numbers
                             totalBetVolumeAdded = B + S + BI + SI + STR;
 
                         } else if (parts.length >= 2) { 
-                            // Fallback for simple/legacy NNNN-X-Y-Z... format: sum all points, no IBOX permutations
                             for (let i = 1; i < parts.length; i++) {
                                 totalBetVolumeAdded += parseInt(parts[i], 10) || 0;
                             }
                         }
 
-                        // Apply the points
                         if (totalBetVolumeAdded > 0) {
                             numbersToUpdate.forEach(number => {
                                 const i = parseInt(number, 10);
                                 if (i >= 0 && i <= 9999) {
-                                    // Add the total combined bet volume to all related numbers (base + perms)
                                     numberData[i].betVolume += totalBetVolumeAdded;
                                     updateBoxColor(i);
                                     updatesMade++;
@@ -519,13 +607,11 @@
                             });
                         }
 
-                    // Case 2: Result Point Update (Format: 1234 - a 4-digit number)
                     } else if (token.length === 4 && /^\d{4}$/.test(token)) {
                         const numStr = token.padStart(4, '0');
                         const index = parseInt(numStr, 10);
                         
                         if (index >= 0 && index <= 9999) {
-                            // A simple 4-digit number (from HTML paste) adds 1 Result Point
                             numberData[index].resultPoint += 1;
                             updateBoxColor(index);
                             updatesMade++;
@@ -535,11 +621,10 @@
 
                 if (updatesMade > 0) {
                     saveDataToLocalStorage(); 
-                    updateWarningIndicator(); // Check and display warning after update
+                    updateWarningIndicator();
                     numberInput.value = ''; 
                     alert(`${updatesMade} total number entries or permutations updated successfully!`);
                 } else {
-                    // If no updates were made, remove the state capture to prevent a redundant undo step.
                     history.pop(); 
                     updateUndoButtonState(); 
                     alert("No valid numbers found to update. Check your input format. (Structured bets require at least NNNN-B-S-BI).");
@@ -547,12 +632,11 @@
             }
 
             /**
-             * Handles the "Add Result (Single)" button click.
+             * Handles the "Add Result (Single)" button click. (Logic unchanged)
              */
             function handleAddResultSingle() {
                 const rawInput = numberInput.value.trim();
                 
-                // 1. Input Validation
                 if (!rawInput) {
                     alert("Please enter or paste a number (e.g., 1234) into the input box.");
                     return;
@@ -568,13 +652,8 @@
                 const numStr = match[0];
                 const index = parseInt(numStr, 10);
 
-                // 2. CAPTURE STATE BEFORE MODIFICATION
                 captureState();
-
-                // 3. Perform Modification
                 numberData[index].resultPoint += 1;
-
-                // 4. Update UI and Save
                 updateBoxColor(index);
                 saveDataToLocalStorage();
                 updateWarningIndicator(); 
@@ -585,14 +664,13 @@
             }
 
              /**
-             * Resets all numbers to their default state.
+             * Resets all numbers to their default state. (Logic unchanged)
              */
             function handleReset() {
                 if (!confirm("Are you sure you want to reset ALL 10,000 numbers? This action cannot be undone.")) {
                     return;
                 }
                 
-                // CAPTURE STATE BEFORE MODIFICATION
                 captureState();
 
                 for (let i = 0; i < 10000; i++) {
@@ -600,9 +678,8 @@
                     numberData[i].betVolume = 0;
                     updateBoxColor(i);
                 }
-                // SAVE the reset state
                 saveDataToLocalStorage();
-                updateWarningIndicator(); // Check and hide warning after reset
+                updateWarningIndicator(); 
                 alert("All number data has been reset.");
             }
 
@@ -612,9 +689,8 @@
             undoBtn.addEventListener('click', handleUndo); 
             resetBtn.addEventListener('click', handleReset);
             
-            // Allow 'Enter' in the textarea to trigger the bulk update
             numberInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' && !event.shiftKey) { // Prevent default Enter (newline) unless Shift is held
+                if (event.key === 'Enter' && !event.shiftKey) { 
                     event.preventDefault();
                     handleUpdate();
                 }
