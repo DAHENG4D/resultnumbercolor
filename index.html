@@ -156,53 +156,92 @@
             const randomizeBtn = document.getElementById('randomize-btn');
             const resetBtn = document.getElementById('reset-btn');
 
+            // 🌟 NEW: Key for storing data in the browser
+            const STORAGE_KEY = 'numberGridData';
+
             // Data store for all 10,000 numbers
-            const numberData = [];
+            let numberData = []; 
+
+            /**
+             * 🌟 NEW: Loads number data from localStorage if it exists.
+             */
+            function loadDataFromLocalStorage() {
+                try {
+                    const data = localStorage.getItem(STORAGE_KEY);
+                    if (data) {
+                        return JSON.parse(data);
+                    }
+                } catch (e) {
+                    console.error("Error loading data from local storage:", e);
+                }
+                return null;
+            }
+
+            /**
+             * 🌟 NEW: Saves the current state of numberData to localStorage.
+             */
+            function saveDataToLocalStorage() {
+                try {
+                    // Create a shallow copy to save only the necessary properties
+                    const dataToSave = numberData.map(item => ({
+                        resultPoint: item.resultPoint,
+                        betVolume: item.betVolume
+                    }));
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+                } catch (e) {
+                    console.error("Error saving data to local storage:", e);
+                }
+            }
+
 
             /**
              * Initializes the grid by creating 10,000 number boxes
              * and populating the data store, applying the latest results.
              */
             function initializeGrid() {
-                // Use a document fragment for performance.
                 const fragment = document.createDocumentFragment();
+                
+                // 1. Try to load saved data first
+                const savedData = loadDataFromLocalStorage();
 
                 for (let i = 0; i < 10000; i++) {
                     const numberStr = i.toString().padStart(4, '0');
 
-                    // 1. Initialize data store for this number
-                    numberData[i] = {
+                    // 2. Initialize numberData: use saved data or default to {0, 0}
+                    numberData[i] = savedData && savedData[i] ? savedData[i] : {
                         resultPoint: 0,
                         betVolume: 0
                     };
 
-                    // 🌟 NEW LOGIC: Apply the latest draw results here
+                    // 3. Apply the LATEST_DRAW_RESULTS logic
+                    // This logic ADDs points, ensuring new draw results stack on existing data
                     if (LATEST_DRAW_RESULTS && LATEST_DRAW_RESULTS[numberStr]) {
                         const points = LATEST_DRAW_RESULTS[numberStr];
-                        // Add the points (1, 2, 3, 4, or 5) to the resultPoint
                         numberData[i].resultPoint += points; 
                     }
 
-                    // 2. Create the visual box element
+                    // 4. Create the visual box element
                     const box = document.createElement('div');
                     box.className = 'number-box';
                     box.textContent = numberStr;
-                    box.id = `box-${numberStr}`; // Assign a unique ID for easy access
+                    box.id = `box-${numberStr}`;
                     fragment.appendChild(box);
                 }
-                gridContainer.appendChild(fragment); // Append all boxes at once
+                gridContainer.appendChild(fragment); 
                 
-                // 🌟 NEW LOGIC: After all data is set, update colors for all 10000 numbers
+                // 5. Update colors for all numbers
                 for (let i = 0; i < 10000; i++) {
                     updateBoxColor(i);
                 }
                 
-                console.log("Grid initialized and latest results applied.");
+                // 6. Save the final initialized state (including new draw results)
+                saveDataToLocalStorage();
+                
+                console.log("Grid initialized, local data loaded, and latest results applied.");
             }
 
             /**
              * Updates the color of a single number box based on its data.
-             * @param {number} index - The index of the number (0-9999).
              */
             function updateBoxColor(index) {
                 const numberStr = index.toString().padStart(4, '0');
@@ -210,13 +249,12 @@
                 if (!box) return;
 
                 const data = numberData[index];
+                // Check if resultPoint is greater than 0 (it could be 1, 2, 3, 4, or 5+)
                 const hasResult = data.resultPoint > 0;
                 const hasBet = data.betVolume > 0;
 
-                // Reset classes first
                 box.className = 'number-box';
 
-                // Apply new class based on conditions
                 if (hasResult && hasBet) {
                     box.classList.add('red');
                 } else if (hasResult) {
@@ -225,6 +263,7 @@
                     box.classList.add('yellow');
                 }
             }
+
 
             /**
              * Handles the "Update" button click.
@@ -239,45 +278,46 @@
                 }
 
                 // Update the data store
-                // NOTE: Manually setting a result point will overwrite any points from LATEST_DRAW_RESULTS
                 numberData[index].resultPoint = parseInt(resultInput.value, 10) || 0;
                 numberData[index].betVolume = parseInt(betInput.value, 10) || 0;
 
-                // Update the visual display for that specific number
+                // Update the visual display and 🌟 SAVE
                 updateBoxColor(index);
+                saveDataToLocalStorage(); 
             }
 
             /**
-             * Randomly assigns values to 100 numbers to demonstrate the effect.
+             * Randomly assigns values to 100 numbers.
              */
             function handleRandomize() {
                 for (let i = 0; i < 100; i++) {
                     const randomIndex = Math.floor(Math.random() * 10000);
-                    const randomState = Math.floor(Math.random() * 4); // 0: reset, 1: blue, 2: yellow, 3: red
+                    const randomState = Math.floor(Math.random() * 4);
                     
-                    // Get the base data (which might contain points from LATEST_DRAW_RESULTS)
                     const currentResultPoint = numberData[randomIndex].resultPoint;
 
                     switch (randomState) {
-                        case 0: // Reset (Only clears it if it was 0 initially)
+                        case 0:
                             numberData[randomIndex].resultPoint = 0;
                             numberData[randomIndex].betVolume = 0;
                             break;
-                        case 1: // Blue (Sets a Result Point, but keeps the higher value if LATEST_DRAW_RESULTS has one)
+                        case 1:
                             numberData[randomIndex].resultPoint = Math.max(currentResultPoint, Math.floor(Math.random() * 100) + 1);
                             numberData[randomIndex].betVolume = 0;
                             break;
-                        case 2: // Yellow (Sets a Bet Volume, keeping the base result point)
+                        case 2:
                             numberData[randomIndex].resultPoint = currentResultPoint;
                             numberData[randomIndex].betVolume = Math.floor(Math.random() * 100) + 1;
                             break;
-                        case 3: // Red (Sets both, keeping the higher result point)
+                        case 3:
                             numberData[randomIndex].resultPoint = Math.max(currentResultPoint, Math.floor(Math.random() * 100) + 1);
                             numberData[randomIndex].betVolume = Math.floor(Math.random() * 100) + 1;
                             break;
                     }
                     updateBoxColor(randomIndex);
                 }
+                // 🌟 SAVE after randomization
+                saveDataToLocalStorage();
             }
 
              /**
@@ -289,6 +329,8 @@
                     numberData[i].betVolume = 0;
                     updateBoxColor(i);
                 }
+                // 🌟 SAVE the reset state
+                saveDataToLocalStorage();
             }
 
             // --- Event Listeners ---
@@ -296,7 +338,6 @@
             randomizeBtn.addEventListener('click', handleRandomize);
             resetBtn.addEventListener('click', handleReset);
             
-            // Allow pressing Enter in the last input field to trigger update
             betInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
                     handleUpdate();
