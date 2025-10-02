@@ -156,14 +156,14 @@
             const randomizeBtn = document.getElementById('randomize-btn');
             const resetBtn = document.getElementById('reset-btn');
 
-            // 🌟 NEW: Key for storing data in the browser
+            // 🌟 Persistence Key
             const STORAGE_KEY = 'numberGridData';
 
             // Data store for all 10,000 numbers
             let numberData = []; 
 
             /**
-             * 🌟 NEW: Loads number data from localStorage if it exists.
+             * Loads number data from localStorage if it exists.
              */
             function loadDataFromLocalStorage() {
                 try {
@@ -178,11 +178,11 @@
             }
 
             /**
-             * 🌟 NEW: Saves the current state of numberData to localStorage.
+             * Saves the current state of numberData to localStorage.
              */
             function saveDataToLocalStorage() {
                 try {
-                    // Create a shallow copy to save only the necessary properties
+                    // Create a compact array to save only the necessary data
                     const dataToSave = numberData.map(item => ({
                         resultPoint: item.resultPoint,
                         betVolume: item.betVolume
@@ -195,26 +195,24 @@
 
 
             /**
-             * Initializes the grid by creating 10,000 number boxes
-             * and populating the data store, applying the latest results.
+             * Initializes the grid, loads saved data, and applies new draw results.
              */
             function initializeGrid() {
                 const fragment = document.createDocumentFragment();
                 
-                // 1. Try to load saved data first
+                // 1. Load saved data
                 const savedData = loadDataFromLocalStorage();
 
                 for (let i = 0; i < 10000; i++) {
                     const numberStr = i.toString().padStart(4, '0');
 
-                    // 2. Initialize numberData: use saved data or default to {0, 0}
+                    // 2. Initialize numberData with saved values or default
                     numberData[i] = savedData && savedData[i] ? savedData[i] : {
                         resultPoint: 0,
                         betVolume: 0
                     };
 
-                    // 3. Apply the LATEST_DRAW_RESULTS logic
-                    // This logic ADDs points, ensuring new draw results stack on existing data
+                    // 3. Apply the LATEST_DRAW_RESULTS (adds points to existing resultPoint)
                     if (LATEST_DRAW_RESULTS && LATEST_DRAW_RESULTS[numberStr]) {
                         const points = LATEST_DRAW_RESULTS[numberStr];
                         numberData[i].resultPoint += points; 
@@ -229,12 +227,11 @@
                 }
                 gridContainer.appendChild(fragment); 
                 
-                // 5. Update colors for all numbers
+                // 5. Update colors and Save the new state
                 for (let i = 0; i < 10000; i++) {
                     updateBoxColor(i);
                 }
                 
-                // 6. Save the final initialized state (including new draw results)
                 saveDataToLocalStorage();
                 
                 console.log("Grid initialized, local data loaded, and latest results applied.");
@@ -249,7 +246,6 @@
                 if (!box) return;
 
                 const data = numberData[index];
-                // Check if resultPoint is greater than 0 (it could be 1, 2, 3, 4, or 5+)
                 const hasResult = data.resultPoint > 0;
                 const hasBet = data.betVolume > 0;
 
@@ -281,7 +277,7 @@
                 numberData[index].resultPoint = parseInt(resultInput.value, 10) || 0;
                 numberData[index].betVolume = parseInt(betInput.value, 10) || 0;
 
-                // Update the visual display and 🌟 SAVE
+                // Update the visual display and SAVE
                 updateBoxColor(index);
                 saveDataToLocalStorage(); 
             }
@@ -316,7 +312,7 @@
                     }
                     updateBoxColor(randomIndex);
                 }
-                // 🌟 SAVE after randomization
+                // SAVE after randomization
                 saveDataToLocalStorage();
             }
 
@@ -329,7 +325,7 @@
                     numberData[i].betVolume = 0;
                     updateBoxColor(i);
                 }
-                // 🌟 SAVE the reset state
+                // SAVE the reset state
                 saveDataToLocalStorage();
             }
 
