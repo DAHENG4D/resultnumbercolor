@@ -143,6 +143,10 @@
     <main id="grid-container"></main>
 
     <script>
+        // Data injected by the dhsourcerepo-randomizer script
+        const LATEST_DRAW_RESULTS = {}; // Placeholder. The Python script will replace this line
+        // End of injected data
+
         document.addEventListener('DOMContentLoaded', () => {
             const gridContainer = document.getElementById('grid-container');
             const numberInput = document.getElementById('number-input');
@@ -157,11 +161,10 @@
 
             /**
              * Initializes the grid by creating 10,000 number boxes
-             * and populating the data store.
+             * and populating the data store, applying the latest results.
              */
             function initializeGrid() {
-                // Use a document fragment for performance. It builds the elements in memory
-                // before adding them to the DOM in a single operation.
+                // Use a document fragment for performance.
                 const fragment = document.createDocumentFragment();
 
                 for (let i = 0; i < 10000; i++) {
@@ -173,6 +176,13 @@
                         betVolume: 0
                     };
 
+                    // 🌟 NEW LOGIC: Apply the latest draw results here
+                    if (LATEST_DRAW_RESULTS && LATEST_DRAW_RESULTS[numberStr]) {
+                        const points = LATEST_DRAW_RESULTS[numberStr];
+                        // Add the points (1, 2, 3, 4, or 5) to the resultPoint
+                        numberData[i].resultPoint += points; 
+                    }
+
                     // 2. Create the visual box element
                     const box = document.createElement('div');
                     box.className = 'number-box';
@@ -181,7 +191,13 @@
                     fragment.appendChild(box);
                 }
                 gridContainer.appendChild(fragment); // Append all boxes at once
-                console.log("Grid initialized.");
+                
+                // 🌟 NEW LOGIC: After all data is set, update colors for all 10000 numbers
+                for (let i = 0; i < 10000; i++) {
+                    updateBoxColor(i);
+                }
+                
+                console.log("Grid initialized and latest results applied.");
             }
 
             /**
@@ -223,6 +239,7 @@
                 }
 
                 // Update the data store
+                // NOTE: Manually setting a result point will overwrite any points from LATEST_DRAW_RESULTS
                 numberData[index].resultPoint = parseInt(resultInput.value, 10) || 0;
                 numberData[index].betVolume = parseInt(betInput.value, 10) || 0;
 
@@ -237,22 +254,25 @@
                 for (let i = 0; i < 100; i++) {
                     const randomIndex = Math.floor(Math.random() * 10000);
                     const randomState = Math.floor(Math.random() * 4); // 0: reset, 1: blue, 2: yellow, 3: red
+                    
+                    // Get the base data (which might contain points from LATEST_DRAW_RESULTS)
+                    const currentResultPoint = numberData[randomIndex].resultPoint;
 
                     switch (randomState) {
-                        case 0: // Reset
+                        case 0: // Reset (Only clears it if it was 0 initially)
                             numberData[randomIndex].resultPoint = 0;
                             numberData[randomIndex].betVolume = 0;
                             break;
-                        case 1: // Blue
-                            numberData[randomIndex].resultPoint = Math.floor(Math.random() * 100) + 1;
+                        case 1: // Blue (Sets a Result Point, but keeps the higher value if LATEST_DRAW_RESULTS has one)
+                            numberData[randomIndex].resultPoint = Math.max(currentResultPoint, Math.floor(Math.random() * 100) + 1);
                             numberData[randomIndex].betVolume = 0;
                             break;
-                        case 2: // Yellow
-                            numberData[randomIndex].resultPoint = 0;
+                        case 2: // Yellow (Sets a Bet Volume, keeping the base result point)
+                            numberData[randomIndex].resultPoint = currentResultPoint;
                             numberData[randomIndex].betVolume = Math.floor(Math.random() * 100) + 1;
                             break;
-                        case 3: // Red
-                            numberData[randomIndex].resultPoint = Math.floor(Math.random() * 100) + 1;
+                        case 3: // Red (Sets both, keeping the higher result point)
+                            numberData[randomIndex].resultPoint = Math.max(currentResultPoint, Math.floor(Math.random() * 100) + 1);
                             numberData[randomIndex].betVolume = Math.floor(Math.random() * 100) + 1;
                             break;
                     }
