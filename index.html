@@ -23,7 +23,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 1rem;
-            align-items: flex-start; /* Changed to flex-start to align textarea */
+            align-items: flex-start;
             border: 1px solid #444;
         }
 
@@ -34,6 +34,32 @@
             margin-bottom: 0.5rem;
             color: #fff;
         }
+
+        /* --- Status Key & Warning --- */
+        .status-key {
+            width: 100%;
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px dashed #444;
+            flex-wrap: wrap;
+            font-size: 0.85rem;
+        }
+
+        .warning-message {
+            width: 100%;
+            background-color: #581616; /* Darker red */
+            color: #ffcccc;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            font-weight: bold;
+            border: 1px solid #dc3545;
+            margin-top: 1rem;
+        }
+        /* -------------------------- */
+
 
         .control-group {
             display: flex;
@@ -63,24 +89,43 @@
             padding: 0.6rem 1rem;
             border: none;
             border-radius: 4px;
-            background-color: #007bff;
             color: white;
             font-weight: bold;
             cursor: pointer;
             transition: background-color 0.2s ease;
             align-self: flex-end;
         }
-
-        button:hover {
+        
+        /* Default Update Button */
+        #update-btn {
+            background-color: #007bff;
+        }
+        #update-btn:hover {
             background-color: #0056b3;
         }
 
-        #randomize-btn {
+        /* Add Result Button */
+        #randomize-btn { 
             background-color: #28a745;
         }
         #randomize-btn:hover {
             background-color: #218838;
         }
+
+        /* Undo Button - NEW */
+        #undo-btn {
+            background-color: #6c757d; /* Gray */
+        }
+        #undo-btn:hover:not(:disabled) {
+            background-color: #5a6268;
+        }
+        #undo-btn:disabled {
+            background-color: #495057;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Reset Button */
         #reset-btn {
             background-color: #dc3545;
         }
@@ -127,18 +172,33 @@
 
     <header class="controls">
         <h2>Bulk Number Status Update</h2>
+        
+        <div id="status-key" class="status-key">
+            <span>🔴 **Red**: Result & Bet (Result Point > 0 AND Bet Volume > 0)</span>
+            <span>🔵 **Blue**: Result Only (Result Point > 0)</span>
+            <span>🟡 **Yellow**: Bet Only (Bet Volume > 0)</span>
+        </div>
+        
+        <div id="red-box-warning" class="warning-message" style="display: none;">
+            ⚠️ **WARNING**: Red Box(es) exist! A number has resulted *and* has current bet volume.
+        </div>
+        
         <div class="control-group">
             <label for="number-input">
-                Enter Numbers & Data (4-digit number only, or number-point pairs)
+                Enter Numbers & Data (Paste draw results HTML or custom bets)
                 <br>
-                Example 1 (Result Points): 1077 6398 4999 1587 ...
+                Example 1 (Result Points): Paste the entire results table/divs.
                 <br>
-                Example 2 (Bet Volume): 1234-1 0003-0-2 1354-1-3-4
+                Example 2 (Structured Bet): NNNN-B-S-BI-SI-STR (e.g., **1234-0-0-10-0-0**)
+                <br>
+                Example 3 (Simple Bet): NNNN-X (e.g., **1234-1**)
             </label>
             <textarea id="number-input" placeholder="Paste your list here..."></textarea>
         </div>
+        
         <button id="update-btn">Update Status</button>
-        <button id="randomize-btn">Randomize 100</button>
+        <button id="randomize-btn">Add Result (Single)</button>
+        <button id="undo-btn">Undo</button> 
         <button id="reset-btn">Reset All</button>
     </header>
 
@@ -148,12 +208,19 @@
         // Data injected by the dhsourcerepo-randomizer script
         const LATEST_DRAW_RESULTS = {}; // Placeholder. The Python script will replace this line
         // End of injected data
+        
+        // --- Undo History Variables ---
+        // HISTORY_LIMIT = 10 means we keep the last 10 actions + the current state (11 total entries)
+        let history = [];
+        const HISTORY_LIMIT = 10;
+        // ------------------------------
 
         document.addEventListener('DOMContentLoaded', () => {
             const gridContainer = document.getElementById('grid-container');
-            const numberInput = document.getElementById('number-input');
+            const numberInput = document.getElementById('number-input'); 
             const updateBtn = document.getElementById('update-btn');
-            const randomizeBtn = document.getElementById('randomize-btn');
+            const addResultSingleBtn = document.getElementById('randomize-btn'); 
+            const undoBtn = document.getElementById('undo-btn'); 
             const resetBtn = document.getElementById('reset-btn');
 
             // 🌟 Persistence Key
@@ -162,6 +229,70 @@
             // Data store for all 10,000 numbers
             let numberData = []; 
 
+            // --- History Functions ---
+
+            /**
+             * Captures the current state of numberData and pushes it to history.
+             * The redundant state check has been removed to ensure every action 
+             * that calls this function creates a unique undo step.
+             */
+            function captureState() {
+                // Map to only store the necessary values (resultPoint, betVolume)
+                const currentState = numberData.map(item => ({
+                    resultPoint: item.resultPoint,
+                    betVolume: item.betVolume
+                }));
+                
+                history.push(currentState);
+                
+                // Limit history size to HISTORY_LIMIT (10) + 1 (current state)
+                if (history.length > HISTORY_LIMIT + 1) {
+                    history.shift(); // Remove the oldest state
+                }
+                
+                updateUndoButtonState();
+            }
+
+            /**
+             * Updates the disabled state and text of the Undo button.
+             */
+            function updateUndoButtonState() {
+                // Undo is possible if history.length > 1 (meaning there is at least one previous state to revert to)
+                const undoCount = history.length > 1 ? history.length - 1 : 0;
+                undoBtn.disabled = undoCount === 0;
+                undoBtn.textContent = `Undo (${undoCount})`;
+            }
+
+            /**
+             * Handles the "Undo" button click.
+             */
+            function handleUndo() {
+                if (history.length <= 1) {
+                    alert("Nothing left to undo.");
+                    return;
+                }
+                
+                // 1. Remove the current state (the result of the last action)
+                history.pop(); 
+                
+                // 2. Get the previous state (the one we revert to)
+                const previousState = history[history.length - 1]; 
+                
+                // 3. Restore numberData and redraw
+                numberData.forEach((item, index) => {
+                    item.resultPoint = previousState[index].resultPoint;
+                    item.betVolume = previousState[index].betVolume;
+                    updateBoxColor(index);
+                });
+
+                // 4. Save and Update UI
+                saveDataToLocalStorage();
+                updateWarningIndicator(); 
+                updateUndoButtonState(); 
+            }
+
+            // --- Persistence Functions ---
+
             /**
              * Loads number data from localStorage if it exists.
              */
@@ -169,7 +300,6 @@
                 try {
                     const data = localStorage.getItem(STORAGE_KEY);
                     if (data) {
-                        // The saved data is a compact array of objects: [{resultPoint, betVolume}, ...]
                         return JSON.parse(data);
                     }
                 } catch (e) {
@@ -183,7 +313,6 @@
              */
             function saveDataToLocalStorage() {
                 try {
-                    // Create a compact array to save only the necessary data
                     const dataToSave = numberData.map(item => ({
                         resultPoint: item.resultPoint,
                         betVolume: item.betVolume
@@ -191,6 +320,30 @@
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
                 } catch (e) {
                     console.error("Error saving data to local storage:", e);
+                }
+            }
+
+
+            /**
+             * Checks for red boxes and displays a warning in the header.
+             */
+            function updateWarningIndicator() {
+                const warningDiv = document.getElementById('red-box-warning');
+                let redBoxExists = false;
+
+                // Iterate through the whole dataset to find a red box
+                for (let i = 0; i < 10000; i++) {
+                    const data = numberData[i];
+                    if (data.resultPoint > 0 && data.betVolume > 0) {
+                        redBoxExists = true;
+                        break; // Stop checking once one red box is found
+                    }
+                }
+
+                if (redBoxExists) {
+                    warningDiv.style.display = 'block';
+                } else {
+                    warningDiv.style.display = 'none';
                 }
             }
 
@@ -208,15 +361,10 @@
                     const numberStr = i.toString().padStart(4, '0');
 
                     // 2. Initialize numberData with saved values or default
-                    // Ensure full object structure is preserved or created
-                    numberData[i] = savedData && savedData[i] ? {
-                        resultPoint: savedData[i].resultPoint || 0,
-                        betVolume: savedData[i].betVolume || 0
-                    } : {
+                    numberData[i] = savedData && savedData[i] ? savedData[i] : {
                         resultPoint: 0,
                         betVolume: 0
                     };
-
 
                     // 3. Apply the LATEST_DRAW_RESULTS (adds points to existing resultPoint)
                     if (LATEST_DRAW_RESULTS && LATEST_DRAW_RESULTS[numberStr]) {
@@ -238,7 +386,11 @@
                     updateBoxColor(i);
                 }
                 
+                updateWarningIndicator(); // Check and display warning on load
                 saveDataToLocalStorage();
+                
+                // 6. Capture the initial state after load/setup
+                captureState(); 
                 
                 console.log("Grid initialized, local data loaded, and latest results applied.");
             }
@@ -266,9 +418,33 @@
                 }
             }
 
+            /**
+             * Generates all unique permutations of a 4-digit string.
+             */
+            function getPermutations(numStr) {
+                if (numStr.length !== 4) return [numStr];
+
+                let results = new Set();
+
+                function permute(arr, memo = []) {
+                    if (arr.length === 0) {
+                        results.add(memo.join(''));
+                        return;
+                    }
+                    for (let i = 0; i < arr.length; i++) {
+                        const curr = arr.slice(i, i + 1);
+                        const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+                        permute(remaining, memo.concat(curr));
+                    }
+                }
+
+                permute(numStr.split(''));
+                return Array.from(results);
+            }
+
 
             /**
-             * Handles the "Update" button click for bulk input.
+             * Handles the "Update Status" button click for bulk input.
              */
             function handleUpdate() {
                 const rawInput = numberInput.value.trim();
@@ -277,8 +453,10 @@
                     return;
                 }
 
-                // 1. STRIP HTML TAGS: Remove all content between < and > (including the tags themselves)
-                // This converts the HTML table structure into a plain text string of numbers and words.
+                // CAPTURE STATE BEFORE MODIFICATION
+                captureState();
+                
+                // 1. STRIP HTML TAGS: Remove all content between < and >
                 const strippedInput = rawInput.replace(/<[^>]*>/g, ' ');
 
                 // 2. Split input by any whitespace to get potential tokens
@@ -287,43 +465,67 @@
                 let updatesMade = 0;
                 
                 for (const token of tokens) {
-                    // Case 1: Bet Volume Update (Format: 1234-1-3-4 or 1234-1)
+                    // Case 1: Bet Volume Update (Format: NNNN-B-S-BI-SI-STR or NNNN-X-Y-Z)
                     if (token.includes('-')) {
                         const parts = token.split('-');
                         const numStr = parts[0].padStart(4, '0');
                         const index = parseInt(numStr, 10);
 
+                        // Basic validation for number
                         if (isNaN(index) || index < 0 || index > 9999 || parts.length < 2) {
-                            // console.warn(`Skipping invalid bet format: ${token}`);
                             continue;
                         }
+                        
+                        let numbersToUpdate = new Set();
+                        numbersToUpdate.add(numStr); // Always include the base number
 
-                        // Sum all points after the number part
-                        let betPoints = 0;
-                        for (let i = 1; i < parts.length; i++) {
-                            const point = parseInt(parts[i], 10);
-                            if (!isNaN(point) && point >= 0) {
-                                betPoints += point;
+                        let totalBetVolumeAdded = 0;
+                        
+                        // Check for the structured bet format (4, 5, or 6 parts after the number)
+                        if (parts.length >= 4 && parts.length <= 6) {
+                            // Map the parts to a fixed 5 point values, filling missing trailing parts with 0
+                            const B = parseInt(parts[1], 10) || 0;
+                            const S = parseInt(parts[2], 10) || 0;
+                            const BI = parseInt(parts[3], 10) || 0;
+                            const SI = parts.length >= 5 ? parseInt(parts[4], 10) || 0 : 0;
+                            const STR = parts.length === 6 ? parseInt(parts[5], 10) || 0 : 0;
+
+                            // Add Permutations for IBOX bets (BI or SI)
+                            if (BI > 0 || SI > 0) {
+                                const permutations = getPermutations(numStr);
+                                permutations.forEach(p => numbersToUpdate.add(p));
+                            }
+
+                            // Sum of all points is the total volume to be applied to ALL relevant numbers
+                            totalBetVolumeAdded = B + S + BI + SI + STR;
+
+                        } else if (parts.length >= 2) { 
+                            // Fallback for simple/legacy NNNN-X-Y-Z... format: sum all points, no IBOX permutations
+                            for (let i = 1; i < parts.length; i++) {
+                                totalBetVolumeAdded += parseInt(parts[i], 10) || 0;
                             }
                         }
 
-                        if (betPoints > 0) {
-                            numberData[index].betVolume += betPoints; // Add the points
-                            updateBoxColor(index);
-                            updatesMade++;
+                        // Apply the points
+                        if (totalBetVolumeAdded > 0) {
+                            numbersToUpdate.forEach(number => {
+                                const i = parseInt(number, 10);
+                                if (i >= 0 && i <= 9999) {
+                                    // Add the total combined bet volume to all related numbers (base + perms)
+                                    numberData[i].betVolume += totalBetVolumeAdded;
+                                    updateBoxColor(i);
+                                    updatesMade++;
+                                }
+                            });
                         }
 
-
                     // Case 2: Result Point Update (Format: 1234 - a 4-digit number)
-                    // Check if it's exactly 4 digits
                     } else if (token.length === 4 && /^\d{4}$/.test(token)) {
                         const numStr = token.padStart(4, '0');
                         const index = parseInt(numStr, 10);
                         
-                        // Already validated to be 4 digits, but a final check for index range
                         if (index >= 0 && index <= 9999) {
-                        
-                            // A simple 4-digit number paste adds 1 Result Point
+                            // A simple 4-digit number (from HTML paste) adds 1 Result Point
                             numberData[index].resultPoint += 1;
                             updateBoxColor(index);
                             updatesMade++;
@@ -332,49 +534,54 @@
                 }
 
                 if (updatesMade > 0) {
-                    // Update the visual display and SAVE
                     saveDataToLocalStorage(); 
-                    numberInput.value = ''; // Clear the input after successful update
-                    alert(`${updatesMade} numbers updated successfully!`);
+                    updateWarningIndicator(); // Check and display warning after update
+                    numberInput.value = ''; 
+                    alert(`${updatesMade} total number entries or permutations updated successfully!`);
                 } else {
-                    alert("No valid numbers found to update. Check your input format or ensure there's text after stripping HTML.");
+                    // If no updates were made, remove the state capture to prevent a redundant undo step.
+                    history.pop(); 
+                    updateUndoButtonState(); 
+                    alert("No valid numbers found to update. Check your input format. (Structured bets require at least NNNN-B-S-BI).");
                 }
             }
 
             /**
-             * Randomly assigns values to 100 numbers.
+             * Handles the "Add Result (Single)" button click.
              */
-            function handleRandomize() {
-                for (let i = 0; i < 100; i++) {
-                    const randomIndex = Math.floor(Math.random() * 10000);
-                    const randomState = Math.floor(Math.random() * 4);
-                    
-                    const currentResultPoint = numberData[randomIndex].resultPoint;
-
-                    switch (randomState) {
-                        case 0:
-                            numberData[randomIndex].resultPoint = 0;
-                            numberData[randomIndex].betVolume = 0;
-                            break;
-                        case 1:
-                            // Add points if they are greater than current, or just add a random positive value
-                            numberData[randomIndex].resultPoint = currentResultPoint + Math.floor(Math.random() * 10) + 1;
-                            numberData[randomIndex].betVolume = 0;
-                            break;
-                        case 2:
-                            numberData[randomIndex].resultPoint = currentResultPoint;
-                            numberData[randomIndex].betVolume = numberData[randomIndex].betVolume + Math.floor(Math.random() * 10) + 1; // Add to current bet
-                            break;
-                        case 3:
-                            numberData[randomIndex].resultPoint = currentResultPoint + Math.floor(Math.random() * 10) + 1;
-                            numberData[randomIndex].betVolume = numberData[randomIndex].betVolume + Math.floor(Math.random() * 10) + 1;
-                            break;
-                    }
-                    updateBoxColor(randomIndex);
+            function handleAddResultSingle() {
+                const rawInput = numberInput.value.trim();
+                
+                // 1. Input Validation
+                if (!rawInput) {
+                    alert("Please enter or paste a number (e.g., 1234) into the input box.");
+                    return;
                 }
-                // SAVE after randomization
+                
+                const match = rawInput.match(/\b\d{4}\b/);
+                
+                if (!match) {
+                    alert("Could not find a valid 4-digit number (0000-9999) in the input.");
+                    return;
+                }
+                
+                const numStr = match[0];
+                const index = parseInt(numStr, 10);
+
+                // 2. CAPTURE STATE BEFORE MODIFICATION
+                captureState();
+
+                // 3. Perform Modification
+                numberData[index].resultPoint += 1;
+
+                // 4. Update UI and Save
+                updateBoxColor(index);
                 saveDataToLocalStorage();
-                alert("100 numbers randomized!");
+                updateWarningIndicator(); 
+                
+                numberInput.value = '';
+                
+                alert(`Result point added to ${numStr}. Box is now ${numberData[index].betVolume > 0 ? 'Red' : 'Blue'}.`);
             }
 
              /**
@@ -384,6 +591,10 @@
                 if (!confirm("Are you sure you want to reset ALL 10,000 numbers? This action cannot be undone.")) {
                     return;
                 }
+                
+                // CAPTURE STATE BEFORE MODIFICATION
+                captureState();
+
                 for (let i = 0; i < 10000; i++) {
                     numberData[i].resultPoint = 0;
                     numberData[i].betVolume = 0;
@@ -391,15 +602,17 @@
                 }
                 // SAVE the reset state
                 saveDataToLocalStorage();
+                updateWarningIndicator(); // Check and hide warning after reset
                 alert("All number data has been reset.");
             }
 
             // --- Event Listeners ---
             updateBtn.addEventListener('click', handleUpdate);
-            randomizeBtn.addEventListener('click', handleRandomize);
+            addResultSingleBtn.addEventListener('click', handleAddResultSingle); 
+            undoBtn.addEventListener('click', handleUndo); 
             resetBtn.addEventListener('click', handleReset);
             
-            // Allow 'Enter' in the textarea to trigger the update
+            // Allow 'Enter' in the textarea to trigger the bulk update
             numberInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' && !event.shiftKey) { // Prevent default Enter (newline) unless Shift is held
                     event.preventDefault();
